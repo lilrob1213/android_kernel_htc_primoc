@@ -140,6 +140,7 @@ static unsigned int cache_time;
 static int htc_battery_initial = 0;
 static int htc_full_level_flag = 0;
 static int htc_is_DMB = 0;
++static int fast_charge = 0;
 
 static struct alarm batt_charger_ctrl_alarm;
 static struct work_struct batt_charger_ctrl_work;
@@ -1131,6 +1132,30 @@ static ssize_t htc_battery_show_batt_attr(struct device *dev,
 	return 0;
 }
 
++static ssize_t
++fast_charge_show(struct device *dev,
++          struct device_attribute *attr,
++          char *buf)
++{
++  return sprintf(buf, "%d\n", fast_charge);
++}
++
++static ssize_t
++fast_charge_store(struct device *dev,
++    struct device_attribute *attr, const char *buf, size_t size)
++{
++  int value;
++
++  value = ((int) simple_strtoul(buf, NULL, 10));
++  if(value == 0 || value == 1){
++    fast_charge = value;
++    BATT_LOG("set fast_charge %d", fast_charge);
++  }
++  else
++    return -EINVAL;
++      
++  return size;
++} 
 /* -------------------------------------------------------------------------- */
 static int htc_power_get_property(struct power_supply *psy,
 				    enum power_supply_property psp,
@@ -1343,6 +1368,7 @@ static struct device_attribute htc_battery_attrs[] = {
 	__ATTR(smem_text, S_IRUGO, htc_battery_show_smem, NULL),
 #endif
 	__ATTR(batt_attr_text, S_IRUGO, htc_battery_show_batt_attr, NULL),
++	__ATTR(fast_charge, S_IRUGO|S_IWUSR, fast_charge_show, fast_charge_store),
 };
 
 enum {
@@ -1938,8 +1964,15 @@ static int htc_battery_core_probe(struct platform_device *pdev)
 			BATT_ERR("smem_alloc fail");
 	}
 
-	if (htc_batt_info.charger == SWITCH_CHARGER_TPS65200)
+-	if (htc_batt_info.charger == SWITCH_CHARGER_TPS65200)
++    if (htc_batt_info.charger == SWITCH_CHARGER_TPS65200){
++      if (args->enable == POWER_SUPPLY_ENABLE_SLOW_CHARGE && fast_charge){
++        args->enable = POWER_SUPPLY_ENABLE_FAST_CHARGE;
++        pr_info("[BATT]: %s() Force AC charge: %d\n",
++          __func__, args->enable);
++      } 
 		tps_register_notifier(&tps_int_notifier);
++    } 
 #if CONFIG_HAS_EARLYSUSPEND && defined(CONFIG_MACH_PRIMODD)
 	register_early_suspend(&htc_battery_suspend);
 #endif
