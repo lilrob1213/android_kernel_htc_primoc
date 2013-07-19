@@ -1719,6 +1719,137 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 					if ((finger_pressed & BIT(i)) == BIT(i)) {
 						finger_pressed &= ~BIT(i);
 
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
+			if(s2w_allow_stroke == 1)
+			{
+			  // stroke2wake - any direction activates
+			  if((ts->finger_count == 1) && (s2w_switch > 0))
+			  {
+			    if(((downx == -1) || (abs(downx - finger_data[i][0]) > s2w_register_threshold)) && (finger_data[i][1] > 1780))
+			    {
+			      // handle touch down
+			      if(downx == -1)
+			      {
+			      	downx = finger_data[i][0];
+			      	break;
+			      }
+			      else
+			      {
+			      	// Lock panel to s2w after this distance
+			      	if(abs(downx - finger_data[i][0]) > s2w_register_threshold)
+			      	{
+			      	  barrier = true;
+			      	}
+			      	
+			      	// unlock after distance travelled
+			      	if(abs(downx - finger_data[i][0]) > s2w_min_distance)
+			      	{
+			      	  if (exec_count) {
+			      	    if(scr_suspended == true)
+			      	    {
+			      	      printk(KERN_INFO "[TP] [sweep2wake]: ON");
+			      	      mode=true;
+			      	      sweep2wake_pwrtrigger();
+			      	      exec_count = false;
+			      	      break;
+			      	    }
+			      	    else
+			      	    {
+			      	      printk(KERN_INFO "[TP] [sweep2wake]: OFF");
+			      	      mode=false;
+			      	      sweep2wake_pwrtrigger();
+			      	      exec_count = false;
+			      	      break;
+			      	    }
+			      	  }
+			      	}
+			      }
+			    }
+			  }
+			}
+			else
+			{
+			  // Free swipe - single direction activation
+			  //left->right
+			  if ((ts->finger_count == 1) && (scr_suspended == true) && (s2w_switch > 0)) {
+			  
+			    if(((downx == -1) || (finger_data[i][0] > downx)) && (finger_data[i][1] > 1780))
+			    {
+			      // handle touch down
+			      if(downx == -1)
+			      {
+			      	downx = finger_data[i][0];
+			      	break;
+			      }
+			      else
+			      {
+			      	// Lock panel to s2w after this distance
+			      	if(downx + s2w_register_threshold < finger_data[i][0])
+			      	{
+			      	  barrier = true;
+			      	}
+			      	
+			      	// unlock after distance travelled
+			      	if(downx + s2w_min_distance < finger_data[i][0])
+			      	{
+			      	  if (exec_count) {
+			      	    printk(KERN_INFO "[TP] [sweep2wake]: ON");
+			      	    mode=true;
+			      	    sweep2wake_pwrtrigger();
+			      	    exec_count = false;
+			      	    break;
+			      	  }
+			      	}
+			      }
+			    }
+			  //right->left
+			  } else if ((ts->finger_count == 1) && (scr_suspended == false) && (s2w_switch > 0)) {
+			  
+			    if(((downx == -1) || (finger_data[i][0] < downx)) && (finger_data[i][1] > 1780))
+			    {
+			      // handle touch down
+			      if(downx == -1)
+			      {
+			      	downx = finger_data[i][0];
+			      	break;
+			      }
+			      else
+			      {
+			      	// Lock panel to s2w after this distance
+			      	if(downx - s2w_register_threshold > finger_data[i][0])
+			      	{
+			      	  barrier = true;
+			      	}
+			      	
+			      	// unlock after distance travelled
+			      	if(downx - s2w_min_distance > finger_data[i][0])
+			      	{
+			      	  if (exec_count) {
+			      	    printk(KERN_INFO "[TP] [sweep2wake]: OFF");
+			      	    mode=false;
+			      	    sweep2wake_pwrtrigger();
+			      	    exec_count = false;
+			      	    break;
+			      	  }
+			      	}
+			      }
+			    }
+			  }
+						}
+						
+						if(mode == false){
+							if(touchDebug==true)
+								printk(KERN_INFO "[TP] [sweep2wake]: suspended - ignoring other events");
+							break;
+						} else {
+							if (barrier == true){
+								if(touchDebug==true)
+									printk(KERN_INFO "[TP] [sweep2wake]: in sweep - ignoring other events");
+								break;
+							}
+						}
+#endif
+
 						if (ts->htc_event == SYN_AND_REPORT_TYPE_A) {
 							if (ts->support_htc_event) {
 								input_report_abs(ts->input_dev, ABS_MT_AMPLITUDE,
