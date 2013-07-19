@@ -127,18 +127,20 @@ static irqreturn_t synaptics_irq_thread(int irq, void *ptr);
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
 /***
  *  S2W free swipe and stroke variables
- * /
+ */
+ #define S2W_TAG "[sweep2wake]: "
 // beyond this threshold the panel will not register to apps
-int s2w_register_threshold = 9;
+static unsigned int s2w_register_threshold = 9;
 // power will toggle at this distance from start point
-int s2w_min_distance = 325
+static unsigned int s2w_min_distance = 325
 // use either direction for on/off
-int s2w_allow_stroke = 1;
-int s2w_switch = 1;
-bool scr_suspended = false;
-bool exec_count = true;
-bool barrier = false;
-bool mode=true;
+static bool s2w_allow_stroke = true;
+
+static bool s2w_switch = true;
+static bool scr_suspended = false;
+static bool exec_count = true;
+static bool barrier = false;
+static bool mode=true;
 static struct input_dev * sweep2wake_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 
